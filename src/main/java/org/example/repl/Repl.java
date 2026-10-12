@@ -1,18 +1,33 @@
 package org.example.repl;
 
+import org.example.ast.Program;
 import org.example.lexer.Lexer;
-import org.example.token.Token;
-import org.example.token.TokenType;
+import org.example.parser.Parser;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.util.List;
 
 public class Repl {
 
     private static final String PROMPT = ">> ";
+
+    private static final String MONKEY_FACE = """
+                        __,__
+               .--.  .-"     "-.  .--.
+              / .. \\/  .-. .-.  \\/ .. \\
+             | |  '|  /   Y   \\  |'  | |
+             | \\   \\  \\ 0 | 0 /  /   / |
+              \\ '- ,\\.-\"\"\"\"\"\"\"-./, -' /
+               ''-' /_   ^ ^   _\\ '-''
+                   |  \\._   _./  |
+                   \\   \\ '~' /   /
+                    '._ '-=-' _.'
+                       '-----'
+            """;
 
     public static void start(InputStream in, PrintStream out) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -26,10 +41,24 @@ public class Repl {
                 return;
             }
 
-            Lexer lexer = new Lexer(line);
-            for (Token token = lexer.nextToken(); token.type() != TokenType.EOF; token = lexer.nextToken()) {
-                out.println(token);
+            Parser parser = new Parser(new Lexer(line));
+            Program program = parser.parseProgram();
+
+            if (!parser.errors().isEmpty()) {
+                printParserErrors(out, parser.errors());
+                continue;
             }
+
+            out.println(program);
+        }
+    }
+
+    private static void printParserErrors(PrintStream out, List<String> errors) {
+        out.print(MONKEY_FACE);
+        out.println("Woops! We ran into some monkey business here!");
+        out.println(" parser errors:");
+        for (String message : errors) {
+            out.println("\t" + message);
         }
     }
 }
