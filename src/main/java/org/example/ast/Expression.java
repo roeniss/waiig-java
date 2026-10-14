@@ -2,7 +2,9 @@ package org.example.ast;
 
 import org.example.token.Token;
 
-public interface Expression extends Node {
+public sealed interface Expression extends Node
+        permits Identifier, NumberLiteral, BooleanLiteral, PrefixExpression, InfixExpression,
+        IfExpression, FunctionLiteral, CallExpression {
     Token token();
 
     @Override

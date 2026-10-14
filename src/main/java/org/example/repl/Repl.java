@@ -1,7 +1,10 @@
 package org.example.repl;
 
 import org.example.ast.Program;
+import org.example.evaluator.Evaluator;
 import org.example.lexer.Lexer;
+import org.example.object.Environment;
+import org.example.object.MonkeyObject;
 import org.example.parser.Parser;
 
 import java.io.BufferedReader;
@@ -31,6 +34,8 @@ public class Repl {
 
     public static void start(InputStream in, PrintStream out) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+        // one environment for the whole session, so a let on one line is visible on the next
+        Environment env = new Environment();
 
         while (true) {
             out.print(PROMPT);
@@ -49,7 +54,18 @@ public class Repl {
                 continue;
             }
 
-            out.println(program);
+            MonkeyObject evaluated;
+            try {
+                evaluated = Evaluator.eval(program, env);
+            } catch (RuntimeException e) {
+                // nodes the evaluator doesn't handle yet throw; keep the REPL alive instead of exiting
+                out.println("evaluation failed: " + e.getMessage());
+                continue;
+            }
+
+            if (evaluated != null) {
+                out.println(evaluated.inspect());
+            }
         }
     }
 

@@ -2,7 +2,8 @@ package org.example.ast;
 
 import org.example.token.Token;
 
-public interface Statement extends Node {
+public sealed interface Statement extends Node
+        permits LetStatement, ReturnStatement, ExpressionStatement, BlockStatement {
     Token token();
 
     @Override

@@ -1,6 +1,6 @@
 package org.example.ast;
 
-public interface Node {
+public sealed interface Node permits Program, Statement, Expression {
     String tokenLiteral();
     String toString();
 }

@@ -14,18 +14,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReplTest {
 
     @Test
-    void testPrintsParsedProgram() throws IOException {
+    void testPrintsEvaluatedResult() throws IOException {
         String output = run("""
-                let x = 1 * 2 * 3 * 4 * 5
-                x * y / 2 + 3 * 8 - 123
-                true == false
+                5
+                10
                 """);
 
         assertEquals("""
-                >> let x = ((((1 * 2) * 3) * 4) * 5);
-                >> ((((x * y) / 2) + (3 * 8)) - 123)
-                >> (true == false)
+                >> 5
+                >> 10
                 >>\s""", output);
+    }
+
+    @Test
+    void testPrintsNothingForEmptyLine() throws IOException {
+        String output = run("\n5\n");
+
+        assertEquals(">> >> 5\n>> ", output);
     }
 
     @Test
@@ -37,13 +42,23 @@ class ReplTest {
     }
 
     @Test
-    void testKeepsRunningAfterError() throws IOException {
+    void testKeepsRunningAfterParserError() throws IOException {
         String output = run("""
                 let x 12 * 3;
-                1 + 2
+                5
                 """);
 
-        assertTrue(output.endsWith(">> (1 + 2)\n>> "), output);
+        assertTrue(output.endsWith(">> 5\n>> "), output);
+    }
+
+    @Test
+    void testRemembersBindingsAcrossLines() throws IOException {
+        String output = run("""
+                let x = 5
+                x * 2
+                """);
+
+        assertEquals(">> >> 10\n>> ", output);
     }
 
     private static String run(String input) throws IOException {
