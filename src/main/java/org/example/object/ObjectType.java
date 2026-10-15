@@ -7,5 +7,9 @@ public enum ObjectType {
     RETURN,
     ERROR,
     FUNCTION,
+    STRING,
+    BUILTIN,
+    ARRAY,
+    HASH,
     ;
 }

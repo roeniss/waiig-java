@@ -1,20 +1,24 @@
 package org.example.parser;
 
+import org.example.ast.ArrayLiteral;
 import org.example.ast.BlockStatement;
 import org.example.ast.BooleanLiteral;
 import org.example.ast.CallExpression;
 import org.example.ast.Expression;
 import org.example.ast.ExpressionStatement;
 import org.example.ast.FunctionLiteral;
+import org.example.ast.HashLiteral;
 import org.example.ast.Identifier;
 import org.example.ast.IfExpression;
 import org.example.ast.InfixExpression;
+import org.example.ast.IndexExpression;
 import org.example.ast.NumberLiteral;
 import org.example.ast.LetStatement;
 import org.example.ast.PrefixExpression;
 import org.example.ast.Program;
 import org.example.ast.ReturnStatement;
 import org.example.ast.Statement;
+import org.example.ast.StringLiteral;
 import org.example.lexer.Lexer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -26,6 +30,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -174,6 +179,15 @@ class ParserTest {
         Expression expression = parseSingleExpression("5;");
 
         assertNumberLiteral(expression, 5);
+    }
+
+    @Test
+    void testStringLiteralExpression() {
+        Expression expression = parseSingleExpression("\"hello world\";");
+
+        StringLiteral literal = assertInstanceOf(StringLiteral.class, expression);
+        assertEquals("hello world", literal.value());
+        assertEquals("hello world", literal.toString());
     }
 
     @Test
@@ -369,6 +383,85 @@ class ParserTest {
         parser.parseProgram();
 
         assertEquals("expected next token to be RPAREN, got LBRACE instead", parser.errors().getFirst());
+    }
+
+    @Test
+    void testEmptyHashLiteralParsing() {
+        HashLiteral hash = assertInstanceOf(HashLiteral.class, parseSingleExpression("{}"));
+
+        assertEquals(Map.of(), hash.pairs());
+    }
+
+    @Test
+    void testHashLiteralStringKeys() {
+        HashLiteral hash = assertInstanceOf(
+                HashLiteral.class,
+                parseSingleExpression("{\"one\": 1, \"two\": 2, \"three\": 3}")
+        );
+        Map<String, Long> expected = Map.of("one", 1L, "two", 2L, "three", 3L);
+
+        assertEquals(expected.size(), hash.pairs().size(), "pairs size");
+        hash.pairs().forEach((keyExpression, valueExpression) -> {
+            StringLiteral key = assertInstanceOf(StringLiteral.class, keyExpression);
+            assertNumberLiteral(valueExpression, expected.get(key.value()));
+        });
+    }
+
+    @Test
+    void testHashLiteralExpressionValues() {
+        HashLiteral hash = assertInstanceOf(
+                HashLiteral.class,
+                parseSingleExpression("{\"one\": 0 + 1, \"two\": 10 - 8, \"three\": 15 / 5}")
+        );
+        Map<String, String> expected = Map.of(
+                "one", "(0 + 1)",
+                "two", "(10 - 8)",
+                "three", "(15 / 5)"
+        );
+
+        assertEquals(expected.size(), hash.pairs().size(), "pairs size");
+        hash.pairs().forEach((keyExpression, valueExpression) -> {
+            StringLiteral key = assertInstanceOf(StringLiteral.class, keyExpression);
+            assertEquals(expected.get(key.value()), valueExpression.toString());
+        });
+    }
+
+    @Test
+    void testHashLiteralKeepsSourceOrder() {
+        Expression expression = parseSingleExpression("{\"one\": 1, \"two\": 2, \"three\": 3, \"four\": 4}");
+
+        assertEquals("{one: 1, two: 2, three: 3, four: 4}", expression.toString());
+    }
+
+    @Test
+    void testArrayLiteralParsing() {
+        ArrayLiteral array = assertInstanceOf(
+                ArrayLiteral.class,
+                parseSingleExpression("[1, 2 * 2, 3 + 3]")
+        );
+
+        assertEquals(3, array.elements().size(), "elements size");
+        assertLiteralExpression(array.elements().get(0), 1);
+        assertInfixExpression(array.elements().get(1), 2, "*", 2);
+        assertInfixExpression(array.elements().get(2), 3, "+", 3);
+    }
+
+    @Test
+    void testEmptyArrayLiteralParsing() {
+        ArrayLiteral array = assertInstanceOf(ArrayLiteral.class, parseSingleExpression("[]"));
+
+        assertEquals(List.of(), array.elements());
+    }
+
+    @Test
+    void testIndexExpressionParsing() {
+        IndexExpression index = assertInstanceOf(
+                IndexExpression.class,
+                parseSingleExpression("myArray[1 + 1]")
+        );
+
+        assertIdentifier(index.left(), "myArray");
+        assertInfixExpression(index.index(), 1, "+", 1);
     }
 
     @Test

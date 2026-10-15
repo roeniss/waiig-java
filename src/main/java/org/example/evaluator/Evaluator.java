@@ -3,9 +3,7 @@ package org.example.evaluator;
 import org.example.ast.*;
 import org.example.object.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class Evaluator {
 
@@ -23,18 +21,105 @@ public class Evaluator {
             case LetStatement letStatement -> evalLetStatement(letStatement, env);
             case Identifier identifier -> evalIdentifier(identifier, env);
             case FunctionLiteral functionLiteral -> new FunctionObject(functionLiteral.parameters(), functionLiteral.body(), env);
+            case StringLiteral stringLiteral -> new StringObject(stringLiteral.value());
             case CallExpression callExpression -> evalCallExpression(callExpression, env);
+            case ArrayLiteral arrayLiteral -> evalArrayLiteral(arrayLiteral, env);
+            case IndexExpression indexExpression -> evalIndexExpression(indexExpression, env);
+            case HashLiteral hashLiteral -> evalHashLiteral(hashLiteral, env);
         };
     }
 
-    private static MonkeyObject applyFunction(MonkeyObject function, List<MonkeyObject> arguments) {
-        if (!(function instanceof  FunctionObject(List<Identifier> params, BlockStatement body, Environment env))){
-            return new ErrorObject("not a function: " + function.type());
+    private static MonkeyObject evalHashLiteral(HashLiteral hashLiteral, Environment env) {
+        Map<Expression, Expression> hashLiteralPairs = hashLiteral.pairs();
+
+        Map<HashKey, HashPair> hashPairs = new LinkedHashMap<>();
+
+        for (Map.Entry<Expression, Expression> entry : hashLiteralPairs.entrySet()) {
+            Expression keyNode = entry.getKey();
+            MonkeyObject key = eval(keyNode, env);
+            if (key instanceof ErrorObject) {
+                return key;
+            }
+            if (!(key instanceof Hashable hashable)) {
+                return newError("unusable as hash key: %s", key.type());
+            }
+
+            Expression valueNode = entry.getValue();
+            MonkeyObject value = eval(valueNode, env);
+            if (value instanceof ErrorObject) {
+                return value;
+            }
+
+            HashKey hashed = hashable.hashKey();
+            HashPair hashPair = new HashPair(key, value);
+
+            hashPairs.put(hashed, hashPair);
         }
 
-        Environment extendedEnv = extendFunctionEnv(env, params, arguments);
-        MonkeyObject evaluated = eval(body, extendedEnv);
-        return unwrapReturnValue(evaluated);
+        return new HashObject(hashPairs);
+    }
+
+    private static MonkeyObject evalIndexExpression(IndexExpression indexExpression, Environment env) {
+        MonkeyObject left = eval(indexExpression.left(), env);
+        if (left instanceof ErrorObject) {
+            return left;
+        }
+
+        MonkeyObject index = eval(indexExpression.index(), env);
+        if (index instanceof ErrorObject) {
+            return index;
+        }
+
+        return switch (left) {
+            case ArrayObject(List<MonkeyObject> elements)
+                    when index instanceof IntegerObject(long value) ->
+                    evalArrayIndexExpression(elements, value);
+            case HashObject(Map<HashKey, HashPair> pairs) ->
+                    evalHashIndexExpression(pairs, index);
+            default -> new ErrorObject("index operator not supported: " + left.type());
+        };
+    }
+
+    private static MonkeyObject evalHashIndexExpression(Map<HashKey, HashPair> pairs, MonkeyObject index) {
+        if (!(index instanceof Hashable hashable)) {
+            return newError("unusable as hash key: %s", index.type());
+        }
+
+        HashPair hashPair = pairs.get(hashable.hashKey());
+        if (hashPair == null) {
+            return NullObject.NULL;
+        }
+        return hashPair.value();
+    }
+
+    private static MonkeyObject evalArrayIndexExpression(List<MonkeyObject> elements, long index) {
+        if (index < 0 || index >= elements.size()) {
+            return NullObject.NULL;
+        }
+        return elements.get((int) index);
+    }
+
+    private static MonkeyObject evalArrayLiteral(ArrayLiteral node, Environment env) {
+        List<MonkeyObject> elements = evalExpressions(node.elements(), env);
+        if (elements.size() == 1 && elements.getFirst() instanceof ErrorObject) {
+            return elements.getFirst();
+        }
+        return new ArrayObject(elements);
+    }
+
+    private static MonkeyObject applyFunction(MonkeyObject function, List<MonkeyObject> arguments) {
+        return switch (function) {
+            case FunctionObject(List<Identifier> params, BlockStatement body, Environment env) -> {
+                if (arguments.size() != params.size()) {
+                    yield newError("wrong number of arguments. got=%d, want=%d", arguments.size(), params.size());
+                }
+                Environment extendedEnv = extendFunctionEnv(env, params, arguments);
+                MonkeyObject evaluated = eval(body, extendedEnv);
+                yield unwrapReturnValue(evaluated);
+            }
+            case BuiltinObject(BuiltinFunction builtin) -> builtin.apply(arguments);
+            default -> new ErrorObject("not a function: " + function.type());
+        };
     }
 
     private static MonkeyObject unwrapReturnValue(MonkeyObject evaluated) {
@@ -47,8 +132,8 @@ public class Evaluator {
     private static Environment extendFunctionEnv(Environment env, List<Identifier> params, List<MonkeyObject> arguments) {
         Environment newEnv = new Environment(env);
 
-        for (Identifier param : params) {
-            newEnv.set(param.value(), arguments.get(params.indexOf(param)));
+        for (int i = 0; i < params.size(); i++) {
+            newEnv.set(params.get(i).value(), arguments.get(i));
         }
 
         return newEnv;
@@ -61,7 +146,7 @@ public class Evaluator {
         }
 
         List<MonkeyObject> arguments = evalExpressions(callExpression.arguments(), env);
-        if( arguments.size() == 1 && arguments.getFirst() instanceof ErrorObject) {
+        if (arguments.size() == 1 && arguments.getFirst() instanceof ErrorObject) {
             return arguments.getFirst();
         }
 
@@ -85,7 +170,16 @@ public class Evaluator {
 
     private static MonkeyObject evalIdentifier(Identifier identifier, Environment env) {
         Optional<MonkeyObject> object = env.get(identifier.value());
-        return object.orElseGet(() -> new ErrorObject("identifier not found: " + identifier.value()));
+        if (object.isPresent()) {
+            return object.get();
+        }
+
+        Optional<BuiltinObject> builtin = Builtins.get(identifier.value());
+        if (builtin.isPresent()) {
+            return builtin.get();
+        }
+
+        return new ErrorObject("identifier not found: " + identifier.value());
     }
 
     private static MonkeyObject evalLetStatement(LetStatement letStatement, Environment env) {
@@ -153,7 +247,17 @@ public class Evaluator {
         if (right instanceof ErrorObject) {
             return right;
         }
+        if (left instanceof StringObject(String leftValue) && right instanceof StringObject(String rightValue)) {
+            return evalStringInfixExpression(infixExpression.operator(), leftValue, rightValue);
+        }
         return evalInfixExpression(infixExpression.operator(), left, right);
+    }
+
+    private static MonkeyObject evalStringInfixExpression(String operator, String leftValue, String rightValue) {
+        return switch (operator) {
+            case "+" -> new StringObject(leftValue + rightValue);
+            default -> newError("unknown operator: %s %s %s", ObjectType.STRING, operator, ObjectType.STRING);
+        };
     }
 
     private static MonkeyObject evalInfixExpression(String operator, MonkeyObject left, MonkeyObject right) {
@@ -164,8 +268,8 @@ public class Evaluator {
             case "==" -> evalBooleanObject(left == right);
             case "!=" -> evalBooleanObject(left != right);
             default -> left.type() != right.type()
-                    ? newError("type mismatch: %s %s %s", left.type(), operator, right.type())
-                    : newError("unknown operator: %s %s %s", left.type(), operator, right.type());
+                ? newError("type mismatch: %s %s %s", left.type(), operator, right.type())
+                : newError("unknown operator: %s %s %s", left.type(), operator, right.type());
         };
     }
 
@@ -181,10 +285,10 @@ public class Evaluator {
     }
 
     private static MonkeyObject evalMinusOperatorExpression(MonkeyObject right) {
-        if (!(right instanceof IntegerObject(long value))) {
-            return newError("unknown operator: -%s", right.type());
-        }
-        return new IntegerObject(-value);
+        return switch (right) {
+            case IntegerObject(long value) -> new IntegerObject(-value);
+            default -> newError("unknown operator: -%s", right.type());
+        };
     }
 
     private static MonkeyObject evalBangOperatorExpression(MonkeyObject right) {

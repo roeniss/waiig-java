@@ -85,6 +85,53 @@ class LexerTest {
     }
 
     @Test
+    void testStringTokens() {
+        String input = "\"foobar\" \"foo bar\"";
+        List<Token> expected = List.of(
+                new Token(TokenType.STRING, "foobar"),
+                new Token(TokenType.STRING, "foo bar"),
+                new Token(TokenType.EOF, "")
+        );
+
+        assertTokens(input, expected);
+    }
+
+    @Test
+    void testArrayTokens() {
+        String input = "[1, 2];";
+        List<Token> expected = List.of(
+                new Token(TokenType.LBRACKET, "["),
+                new Token(TokenType.NUMBER, "1"),
+                new Token(TokenType.COMMA, ","),
+                new Token(TokenType.NUMBER, "2"),
+                new Token(TokenType.RBRACKET, "]"),
+                new Token(TokenType.SEMICOLON, ";"),
+                new Token(TokenType.EOF, "")
+        );
+
+        assertTokens(input, expected);
+    }
+
+    @Test
+    void testHashTokens() {
+        String input = "{\"one\": 1, \"two\": 2}";
+        List<Token> expected = List.of(
+                new Token(TokenType.LBRACE, "{"),
+                new Token(TokenType.STRING, "one"),
+                new Token(TokenType.COLON, ":"),
+                new Token(TokenType.NUMBER, "1"),
+                new Token(TokenType.COMMA, ","),
+                new Token(TokenType.STRING, "two"),
+                new Token(TokenType.COLON, ":"),
+                new Token(TokenType.NUMBER, "2"),
+                new Token(TokenType.RBRACE, "}"),
+                new Token(TokenType.EOF, "")
+        );
+
+        assertTokens(input, expected);
+    }
+
+    @Test
     void testSimpleProgram() {
         String input = """
                 let five = 5;

@@ -18,6 +18,7 @@ public enum TokenType {
     EQ,
     NEQ,
     COMMA,
+    COLON,
     SEMICOLON,
     LPAREN,
     RPAREN,
@@ -30,6 +31,9 @@ public enum TokenType {
     IF,
     ELSE,
     RETURN,
+    STRING,
+    LBRACKET,
+    RBRACKET,
     ;
 
     private static final Map<String, TokenType> keywords = Map.of(

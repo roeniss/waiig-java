@@ -3,6 +3,7 @@ package org.example.repl;
 import org.example.ast.Program;
 import org.example.evaluator.Evaluator;
 import org.example.lexer.Lexer;
+import org.example.object.Builtins;
 import org.example.object.Environment;
 import org.example.object.MonkeyObject;
 import org.example.parser.Parser;
@@ -37,35 +38,42 @@ public class Repl {
         // one environment for the whole session, so a let on one line is visible on the next
         Environment env = new Environment();
 
-        while (true) {
-            out.print(PROMPT);
-            out.flush();
+        // puts writes to the same stream as the REPL; the previous target is restored when the session ends
+        PrintStream previousOutput = Builtins.output();
+        Builtins.setOutput(out);
+        try {
+            while (true) {
+                out.print(PROMPT);
+                out.flush();
 
-            String line = reader.readLine();
-            if (line == null) {
-                return;
+                String line = reader.readLine();
+                if (line == null) {
+                    return;
+                }
+
+                Parser parser = new Parser(new Lexer(line));
+                Program program = parser.parseProgram();
+
+                if (!parser.errors().isEmpty()) {
+                    printParserErrors(out, parser.errors());
+                    continue;
+                }
+
+                MonkeyObject evaluated;
+                try {
+                    evaluated = Evaluator.eval(program, env);
+                } catch (RuntimeException e) {
+                    // Java-level failures such as division by zero; keep the REPL alive instead of exiting
+                    out.println("evaluation failed: " + e.getMessage());
+                    continue;
+                }
+
+                if (evaluated != null) {
+                    out.println(evaluated.inspect());
+                }
             }
-
-            Parser parser = new Parser(new Lexer(line));
-            Program program = parser.parseProgram();
-
-            if (!parser.errors().isEmpty()) {
-                printParserErrors(out, parser.errors());
-                continue;
-            }
-
-            MonkeyObject evaluated;
-            try {
-                evaluated = Evaluator.eval(program, env);
-            } catch (RuntimeException e) {
-                // nodes the evaluator doesn't handle yet throw; keep the REPL alive instead of exiting
-                out.println("evaluation failed: " + e.getMessage());
-                continue;
-            }
-
-            if (evaluated != null) {
-                out.println(evaluated.inspect());
-            }
+        } finally {
+            Builtins.setOutput(previousOutput);
         }
     }
 

@@ -29,11 +29,15 @@ public class Lexer {
             case '<' -> token = new Token(TokenType.LT, String.valueOf(ch));
             case '>' -> token = new Token(TokenType.GT, String.valueOf(ch));
             case ',' -> token = new Token(TokenType.COMMA, String.valueOf(ch));
+            case ':' -> token = new Token(TokenType.COLON, String.valueOf(ch));
             case ';' -> token = new Token(TokenType.SEMICOLON, String.valueOf(ch));
             case '(' -> token = new Token(TokenType.LPAREN, String.valueOf(ch));
             case ')' -> token = new Token(TokenType.RPAREN, String.valueOf(ch));
             case '{' -> token = new Token(TokenType.LBRACE, String.valueOf(ch));
             case '}' -> token = new Token(TokenType.RBRACE, String.valueOf(ch));
+            case '"' -> token = new Token(TokenType.STRING, readString());
+            case '[' -> token = new Token(TokenType.LBRACKET, String.valueOf(ch));
+            case ']' -> token = new Token(TokenType.RBRACKET, String.valueOf(ch));
             case '=' -> {
                 if (peekChar() == '=') {
                     readChar();
@@ -64,6 +68,16 @@ public class Lexer {
 
         readChar();
         return token;
+    }
+
+    private String readString() {
+        int start = pos + 1;
+
+        do {
+            readChar();
+        } while (ch != '"' && ch != '\0');
+
+        return input.substring(start, pos);
     }
 
     private String readNumber() {

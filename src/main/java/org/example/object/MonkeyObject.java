@@ -1,6 +1,7 @@
 package org.example.object;
 
-public sealed interface MonkeyObject permits BooleanObject, ErrorObject, FunctionObject, IntegerObject, NullObject, ReturnObject {
+public sealed interface MonkeyObject
+    permits ArrayObject, BooleanObject, BuiltinObject, ErrorObject, FunctionObject, HashObject, IntegerObject, NullObject, ReturnObject, StringObject {
     ObjectType type();
 
     String inspect();

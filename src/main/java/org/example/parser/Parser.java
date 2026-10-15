@@ -17,7 +17,6 @@ public class Parser {
     private final Map<TokenType, PrefixParseFn> prefixParseFns = new HashMap<>();
     private final Map<TokenType, InfixParseFn> infixParseFns = new HashMap<>();
 
-
     public Parser(Lexer lexer) {
         this.lexer = lexer;
         nextToken();
@@ -32,6 +31,9 @@ public class Parser {
         registerPrefix(TokenType.LPAREN, this::parseGroupedExpression);
         registerPrefix(TokenType.IF, this::parseIfExpression);
         registerPrefix(TokenType.FUNCTION, this::parseFunctionExpression);
+        registerPrefix(TokenType.STRING, this::parseStringExpression);
+        registerPrefix(TokenType.LBRACKET, this::parseArrayLiteral);
+        registerPrefix(TokenType.LBRACE, this::parseHashLiteral);
 
         registerInfix(TokenType.PLUS, this::parseInfixExpression);
         registerInfix(TokenType.MINUS, this::parseInfixExpression);
@@ -42,34 +44,87 @@ public class Parser {
         registerInfix(TokenType.LT, this::parseInfixExpression);
         registerInfix(TokenType.GT, this::parseInfixExpression);
         registerInfix(TokenType.LPAREN, this::parseCallExpression);
+        registerInfix(TokenType.LBRACKET, this::parseIndexExpression);
     }
 
-    private List<Expression> parseCallArguments() {
-        List<Expression> arguments = new ArrayList<>();
+    private Expression parseHashLiteral() {
+        Token token = curToken;
+        Map<Expression, Expression> pairs = new LinkedHashMap<>();
 
-        if (peekToken.type() == TokenType.RPAREN) {
+        while (peekToken.type() != TokenType.RBRACE) {
             nextToken();
-            return arguments;
+            Expression key = parseExpression(Precedence.LOWEST);
+
+            if (!expectPeek(TokenType.COLON)) {
+                return null;
+            }
+
+            nextToken();
+            Expression value = parseExpression(Precedence.LOWEST);
+            pairs.put(key, value);
+
+            if (peekToken.type() != TokenType.RBRACE && !expectPeek(TokenType.COMMA)) {
+                return null;
+            }
         }
 
-        nextToken();
-        arguments.add(parseExpression(Precedence.LOWEST));
-
-        while (peekToken.type() == TokenType.COMMA) {
-            nextToken(); // ","
-            nextToken(); // argument
-            arguments.add(parseExpression(Precedence.LOWEST));
-        }
-
-        if (!expectPeek(TokenType.RPAREN)) {
+        if (!expectPeek(TokenType.RBRACE)) {
             return null;
         }
 
-        return arguments;
+        return new HashLiteral(token, pairs);
+    }
+
+    private Expression parseIndexExpression(Expression left) {
+        Token token = curToken;
+
+        nextToken();
+        Expression index = parseExpression(Precedence.LOWEST);
+
+        if (!expectPeek(TokenType.RBRACKET)) {
+            return null;
+        }
+
+        return new IndexExpression(token, left, index);
+    }
+
+    private Expression parseArrayLiteral() {
+        Token token = curToken;
+
+        List<Expression> elements = parseExpressionList(TokenType.RBRACKET);
+
+        return new ArrayLiteral(token, elements);
+    }
+
+    private List<Expression> parseExpressionList(TokenType end) {
+        List<Expression> list = new ArrayList<>();
+
+        if (peekToken.type() == end) {
+            nextToken();
+            return list;
+        }
+
+        nextToken();
+        list.add(parseExpression(Precedence.LOWEST));
+
+        while (peekToken.type() == TokenType.COMMA) {
+            nextToken();
+            nextToken();
+            list.add(parseExpression(Precedence.LOWEST));
+        }
+
+        if (!expectPeek(end)) {
+            return null;
+        }
+        return list;
+    }
+
+    private Expression parseStringExpression() {
+        return new StringLiteral(curToken, curToken.literal());
     }
 
     private Expression parseCallExpression(Expression function) {
-        return new CallExpression(curToken, function, parseCallArguments());
+        return new CallExpression(curToken, function, parseExpressionList(TokenType.RPAREN));
     }
 
     private List<Identifier> parseFunctionParameters() {
@@ -344,7 +399,6 @@ public class Parser {
     private void noPrefixParseFnError(TokenType type) {
         errors.add("no prefix parse function for %s found".formatted(type));
     }
-
 
     private void peekError(TokenType expected) {
         errors.add("expected next token to be %s, got %s instead".formatted(expected, peekToken.type()));

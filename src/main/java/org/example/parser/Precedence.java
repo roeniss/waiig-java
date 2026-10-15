@@ -12,6 +12,7 @@ public enum Precedence {
     PRODUCT,
     PREFIX,
     CALL,
+    INDEX,
     ;
 
     private static final Map<TokenType, Precedence> precedence = Map.of(
@@ -23,7 +24,8 @@ public enum Precedence {
             TokenType.MINUS, SUM,
             TokenType.SLASH, PRODUCT,
             TokenType.ASTERISK, PRODUCT,
-            TokenType.LPAREN, CALL
+            TokenType.LPAREN, CALL,
+            TokenType.LBRACKET, INDEX
     );
 
     public static Precedence getPrecedence(TokenType tokenType) {

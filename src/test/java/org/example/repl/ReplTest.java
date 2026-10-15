@@ -1,5 +1,6 @@
 package org.example.repl;
 
+import org.example.object.Builtins;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -9,6 +10,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReplTest {
@@ -59,6 +61,23 @@ class ReplTest {
                 """);
 
         assertEquals(">> >> 10\n>> ", output);
+    }
+
+    @Test
+    void testPutsWritesToReplOutput() throws IOException {
+        String output = run("puts(\"Hello!\")\n");
+
+        // puts prints its argument, then the REPL prints the NULL that puts returns
+        assertEquals(">> Hello!\nnull\n>> ", output);
+    }
+
+    @Test
+    void testRestoresPutsOutputWhenSessionEnds() throws IOException {
+        PrintStream before = Builtins.output();
+
+        run("puts(1)\n");
+
+        assertSame(before, Builtins.output());
     }
 
     private static String run(String input) throws IOException {

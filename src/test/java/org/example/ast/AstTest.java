@@ -6,7 +6,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,12 +28,42 @@ class AstTest {
     private static final Token LBRACE = new Token(TokenType.LBRACE, "{");
     private static final Token FUNCTION = new Token(TokenType.FUNCTION, "fn");
     private static final Token LPAREN = new Token(TokenType.LPAREN, "(");
+    private static final Token LBRACKET = new Token(TokenType.LBRACKET, "[");
 
     static Stream<Arguments> nodes() {
         return Stream.of(
                 arguments("identifier",
                         identifier("foobar"),
                         "foobar"),
+                arguments("string literal",
+                        string("hello world"),
+                        "hello world"),
+                arguments("array literal",
+                        new ArrayLiteral(LBRACKET, List.of(number(1), new InfixExpression(ASTERISK, number(2), "*", number(3)))),
+                        "[1, (2 * 3)]"),
+                arguments("empty array literal",
+                        new ArrayLiteral(LBRACKET, List.of()),
+                        "[]"),
+                arguments("index expression",
+                        new IndexExpression(LBRACKET, identifier("arr"), new InfixExpression(PLUS, number(1), "+", number(1))),
+                        "(arr[(1 + 1)])"),
+                arguments("index expression on call result",
+                        new IndexExpression(LBRACKET,
+                                new CallExpression(LPAREN, identifier("add"), List.of(number(1))),
+                                number(0)),
+                        "(add(1)[0])"),
+                arguments("index expression inside infix expression",
+                        new InfixExpression(ASTERISK, identifier("a"), "*",
+                                new IndexExpression(LBRACKET, identifier("arr"), number(0))),
+                        "(a * (arr[0]))"),
+                arguments("hash literal",
+                        new HashLiteral(LBRACE, orderedPairs(
+                                string("one"), number(1),
+                                string("two"), new InfixExpression(PLUS, number(1), "+", number(1)))),
+                        "{one: 1, two: (1 + 1)}"),
+                arguments("empty hash literal",
+                        new HashLiteral(LBRACE, Map.of()),
+                        "{}"),
                 arguments("number literal",
                         new NumberLiteral(new Token(TokenType.NUMBER, "5"), 5),
                         "5"),
@@ -176,6 +208,19 @@ class AstTest {
 
     private static Identifier identifier(String name) {
         return new Identifier(new Token(TokenType.IDENTIFIER, name), name);
+    }
+
+    private static StringLiteral string(String value) {
+        return new StringLiteral(new Token(TokenType.STRING, value), value);
+    }
+
+    // a LinkedHashMap so the expected toString order is the order written here
+    private static Map<Expression, Expression> orderedPairs(Expression... keysAndValues) {
+        Map<Expression, Expression> pairs = new LinkedHashMap<>();
+        for (int i = 0; i < keysAndValues.length; i += 2) {
+            pairs.put(keysAndValues[i], keysAndValues[i + 1]);
+        }
+        return pairs;
     }
 
     private static NumberLiteral number(long value) {
