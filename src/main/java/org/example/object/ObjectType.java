@@ -11,5 +11,7 @@ public enum ObjectType {
     BUILTIN,
     ARRAY,
     HASH,
+    QUOTE,
+    MACRO,
     ;
 }

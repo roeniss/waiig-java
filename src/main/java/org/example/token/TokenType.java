@@ -34,6 +34,7 @@ public enum TokenType {
     STRING,
     LBRACKET,
     RBRACKET,
+    MACRO,
     ;
 
     private static final Map<String, TokenType> keywords = Map.of(
@@ -43,7 +44,8 @@ public enum TokenType {
             "false", FALSE,
             "if", IF,
             "else", ELSE,
-            "return", RETURN
+            "return", RETURN,
+            "macro", MACRO
     );
 
     public static TokenType lookupKeyword(String identifier) {

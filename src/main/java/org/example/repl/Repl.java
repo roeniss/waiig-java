@@ -2,6 +2,7 @@ package org.example.repl;
 
 import org.example.ast.Program;
 import org.example.evaluator.Evaluator;
+import org.example.evaluator.MacroExpansion;
 import org.example.lexer.Lexer;
 import org.example.object.Builtins;
 import org.example.object.Environment;
@@ -37,6 +38,8 @@ public class Repl {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
         // one environment for the whole session, so a let on one line is visible on the next
         Environment env = new Environment();
+        // macros live apart from ordinary values: they are defined and expanded before evaluation starts
+        Environment macroEnv = new Environment();
 
         // puts writes to the same stream as the REPL; the previous target is restored when the session ends
         PrintStream previousOutput = Builtins.output();
@@ -61,9 +64,12 @@ public class Repl {
 
                 MonkeyObject evaluated;
                 try {
-                    evaluated = Evaluator.eval(program, env);
+                    Program withoutMacroDefinitions = MacroExpansion.defineMacro(program, macroEnv);
+                    Program expanded = MacroExpansion.expandMacros(withoutMacroDefinitions, macroEnv);
+                    evaluated = Evaluator.eval(expanded, env);
                 } catch (RuntimeException e) {
-                    // Java-level failures such as division by zero; keep the REPL alive instead of exiting
+                    // a macro that cannot be expanded, or a Java-level failure such as division by zero;
+                    // keep the REPL alive instead of exiting
                     out.println("evaluation failed: " + e.getMessage());
                     continue;
                 }

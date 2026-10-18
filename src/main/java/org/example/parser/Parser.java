@@ -33,7 +33,9 @@ public class Parser {
         registerPrefix(TokenType.FUNCTION, this::parseFunctionExpression);
         registerPrefix(TokenType.STRING, this::parseStringExpression);
         registerPrefix(TokenType.LBRACKET, this::parseArrayLiteral);
+        registerPrefix(TokenType.MACRO, this::parseMacroLiteral);
         registerPrefix(TokenType.LBRACE, this::parseHashLiteral);
+        registerPrefix(TokenType.MACRO, this::parseMacroLiteral);
 
         registerInfix(TokenType.PLUS, this::parseInfixExpression);
         registerInfix(TokenType.MINUS, this::parseInfixExpression);
@@ -45,6 +47,24 @@ public class Parser {
         registerInfix(TokenType.GT, this::parseInfixExpression);
         registerInfix(TokenType.LPAREN, this::parseCallExpression);
         registerInfix(TokenType.LBRACKET, this::parseIndexExpression);
+    }
+
+    private Expression parseMacroLiteral() {
+        Token token = curToken;
+
+        if (!expectPeek(TokenType.LPAREN)){
+            return null;
+        }
+
+        List<Identifier> identifiers = parseFunctionParameters();
+
+        if (!expectPeek(TokenType.LBRACE)){
+            return null;
+        }
+
+        BlockStatement body = parseBlockStatement();
+
+        return new MacroLiteral(curToken, identifiers, body);
     }
 
     private Expression parseHashLiteral() {

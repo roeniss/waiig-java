@@ -29,6 +29,7 @@ class AstTest {
     private static final Token FUNCTION = new Token(TokenType.FUNCTION, "fn");
     private static final Token LPAREN = new Token(TokenType.LPAREN, "(");
     private static final Token LBRACKET = new Token(TokenType.LBRACKET, "[");
+    private static final Token MACRO = new Token(TokenType.MACRO, "macro");
 
     static Stream<Arguments> nodes() {
         return Stream.of(
@@ -162,6 +163,23 @@ class AstTest {
                                         block(expressionStatement(identifier("x")))),
                                 List.of(number(5))),
                         "fn(x) x(5)"),
+                arguments("macro literal",
+                        new MacroLiteral(MACRO,
+                                List.of(identifier("x"), identifier("y")),
+                                block(expressionStatement(
+                                        new InfixExpression(PLUS, identifier("x"), "+", identifier("y"))))),
+                        "macro(x, y) (x + y)"),
+                arguments("macro literal without parameters and body",
+                        new MacroLiteral(MACRO, List.of(), block()),
+                        "macro() "),
+                arguments("macro literal with null parameters",
+                        new MacroLiteral(MACRO, null, block()),
+                        "macro() "),
+                arguments("let statement with macro literal value",
+                        new LetStatement(LET, identifier("m"),
+                                new MacroLiteral(MACRO, List.of(identifier("x")),
+                                        block(expressionStatement(identifier("x"))))),
+                        "let m = macro(x) x;"),
                 arguments("let statement with infix value",
                         new LetStatement(LET, identifier("x"),
                                 new InfixExpression(PLUS, identifier("a"), "+", identifier("b"))),

@@ -3,8 +3,7 @@ package org.example.ast;
 import org.example.token.Token;
 
 public sealed interface Expression extends Node
-    permits ArrayLiteral, BooleanLiteral, CallExpression, FunctionLiteral, HashLiteral, Identifier, IfExpression, IndexExpression,
-    InfixExpression, NumberLiteral, PrefixExpression, StringLiteral {
+        permits ArrayLiteral, BooleanLiteral, CallExpression, FunctionLiteral, HashLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, MacroLiteral, NumberLiteral, PrefixExpression, StringLiteral {
     Token token();
 
     @Override

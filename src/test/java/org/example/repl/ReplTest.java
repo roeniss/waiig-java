@@ -72,6 +72,40 @@ class ReplTest {
     }
 
     @Test
+    void testKeepsRunningAfterUnquotingAValueWithNoSourceForm() throws IOException {
+        String output = run("""
+                quote(unquote(fn(x) { x }))
+                5
+                """);
+
+        assertEquals(">> ERROR: cannot unquote FUNCTION\n>> 5\n>> ", output);
+    }
+
+    @Test
+    void testMacroDefinedOnOneLineExpandsOnTheNext() throws IOException {
+        String output = run("""
+                let unless = macro(condition, consequence, alternative) { quote(if (!(unquote(condition))) { unquote(consequence); } else { unquote(alternative); }); };
+                unless(10 > 5, puts("not greater"), puts("greater"));
+                """);
+
+        // the definition line prints nothing; only the branch unless picked runs its puts
+        assertEquals(">> >> greater\nnull\n>> ", output);
+    }
+
+    @Test
+    void testKeepsRunningAfterMacroExpansionFails() throws IOException {
+        // a macro must return quoted code, so this one cannot be expanded
+        String output = run("""
+                let broken = macro() { 1 };
+                broken();
+                5
+                """);
+
+        assertTrue(output.contains("evaluation failed: "), output);
+        assertTrue(output.endsWith(">> 5\n>> "), output);
+    }
+
+    @Test
     void testRestoresPutsOutputWhenSessionEnds() throws IOException {
         PrintStream before = Builtins.output();
 

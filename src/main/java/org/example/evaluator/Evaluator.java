@@ -26,6 +26,7 @@ public class Evaluator {
             case ArrayLiteral arrayLiteral -> evalArrayLiteral(arrayLiteral, env);
             case IndexExpression indexExpression -> evalIndexExpression(indexExpression, env);
             case HashLiteral hashLiteral -> evalHashLiteral(hashLiteral, env);
+            case MacroLiteral macroLiteral -> new MacroObject(macroLiteral.parameters(), macroLiteral.body(), env);
         };
     }
 
@@ -140,6 +141,10 @@ public class Evaluator {
     }
 
     private static MonkeyObject evalCallExpression(CallExpression callExpression, Environment env) {
+        if (Objects.equals(callExpression.function().tokenLiteral(), "quote")) {
+            return QuoteUnquote.quote(callExpression.arguments().getFirst(), env);
+        }
+
         MonkeyObject function = eval(callExpression.function(), env);
         if (function instanceof ErrorObject) {
             return function;
